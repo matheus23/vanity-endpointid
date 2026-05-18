@@ -31,3 +31,7 @@ Options:
       --keep-going         Whether to keep searching even after the first find
   -h, --help               Print help
 ```
+
+## Why
+
+I look at iroh test logs a lot. It's nice if I can recognize the `EndpointId`s in those tests at a glance.
