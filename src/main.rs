@@ -1,9 +1,11 @@
-use std::sync::atomic::AtomicU64;
+use std::{num::NonZeroU64, sync::atomic::AtomicU64};
 
 use clap::Parser;
 use iroh_base::{PublicKey, SecretKey};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+
+const MILLION: NonZeroU64 = NonZeroU64::MIN.saturating_add(999_999);
 
 #[derive(Debug, Clone, clap::Parser)]
 struct CliArgs {
@@ -27,6 +29,16 @@ fn main() {
         .next()
         .map(|first| hex::decode(format!("{first}0")).unwrap()[0]);
 
+    let estimated_iterations: u128 = 1u128 << args.needle.len() * 4;
+    if estimated_iterations > 10_000_000 {
+        println!(
+            "Estimated required iterations: {}M",
+            estimated_iterations / 1_000_000
+        );
+    } else {
+        println!("Estimated required iterations: {estimated_iterations}");
+    }
+
     let iterations = AtomicU64::new(0);
 
     std::thread::scope(|scope| {
@@ -40,15 +52,17 @@ fn run_search(args: &CliArgs, prefix: &[u8], last_byte: Option<u8>, iterations: 
     let mut rng = ChaCha8Rng::from_rng(&mut rand::rng());
     loop {
         let prev = iterations.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if prev != 0 && prev % 10_000 == 0 {
-            println!("{prev}\t iterations");
+        let (millions, rem) = (prev / MILLION, prev % MILLION);
+        if prev != 0 && rem == 0 {
+            println!("\t{millions}M iterations");
         }
         let secret_key = generate(&mut rng);
         let public_key = secret_key.public();
         if found_needle(&public_key, &prefix, last_byte) {
             println!(
-                "found {public_key} (secret key: {})",
-                hex::encode(secret_key.to_bytes())
+                "found {public_key} (secret key: {}) after {} iterations",
+                hex::encode(secret_key.to_bytes()),
+                prev + 1
             );
             if !args.keep_going {
                 std::process::exit(0);
