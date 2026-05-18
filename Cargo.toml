@@ -1,5 +1,5 @@
 [package]
-name = "vanity-ed25519"
+name = "vanity-endpoint-id"
 version = "0.1.0"
 edition = "2024"
 
